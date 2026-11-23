@@ -9,8 +9,14 @@ spec:
       ports:
         - containerPort: 80
       volumeMounts:
-        - name: busybox
+        - name: shared-data
           mountPath: /data
-  volumes:
     - name: busybox
+      image: busybox:latest
+      command: ["sleep", "3600"]
+      volumeMounts:
+        - name: shared-data
+          mountPath: /data  
+  volumes:
+    - name: shared-data
       emptyDir: {}
