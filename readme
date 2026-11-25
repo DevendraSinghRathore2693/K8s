@@ -1,1 +1,164 @@
-test
+Kubernetes
+
+I. Types of Kubernetes Pods
+
+•	Single Container Pod: Contains only one application container.
+•	Multi-Container Pod: Houses multiple containers working together.
+•	Init Container Pods: Specialized pods that run initialization tasks before the main application containers start.
+•	Static Pods: Managed directly by the kubelet on a specific node rather than by the API server.
+
+
+II. Init Containers 
+
+•	Purpose: Used for initialization, such as waiting for a database to become ready or preparing configuration files.
+•	Behavior:
+•	Init containers run to completion before any application containers start.
+•	If multiple init containers exist, they execute sequentially.
+•	Once successfully executed, they terminate and are removed.
+•	Configuration: Defined under the `initContainers` field in the Pod manifest.
+•	Volume Mounting: Can be used to share data (e.g., configuration files) between init containers and application containers using shared `volumes`.
+
+III. Static Pods 
+
+•	Definition: Pods created and managed directly by the `kubelet` on a specific worker node.
+•	Mechanism: The `kubelet` monitors a specific manifest directory on the node; any YAML file placed there is automatically detected and the pod is created.
+•	Management: To delete a static pod, the manifest file must be removed from the predefined directory on the node.
+•	Best Practice: Not recommended for real-time scenarios because manual access to worker nodes is generally restricted.
+
+ Pod Restart Policies 
+
+•	Always (Default): Kubernetes will always restart the container, regardless of the exit code (success or failure).
+•	OnFailure: The container is only restarted if it exits with a non-zero (error) status code.
+•	Never: The container is never restarted, even if it fails.
+•	CrashLoopBackOff: Occurs when a container fails repeatedly, causing Kubernetes to enter a back-off loop for restarts.
+
+V. Troubleshooting Pod Failures 
+
+•	Common Causes: Configuration mistakes in the YAML file, resource exhaustion on nodes, or incorrect image versions/names.
+•	Debugging Commands:
+•	`kubectl describe pod `: Inspects events and status to identify the root cause of failure.
+•	`kubectl get pod  -o yaml`: Views the actual configuration of a running pod.
+•	Image Pull Issues:
+•	`ErrImagePull`: The system is attempting to pull the image but is unable to.
+•	`ImagePullBackOff`: The system has tried to pull the image multiple times and is currently in a wait state.
+•	Image Pull Policies:
+•	Always: Pulls the image every time the pod starts.
+•	IfNotPresent: Pulls the image only if it is not already available locally.
+•	Never: Only uses locally existing images.
+
+
+Kubernetes services concept
+
+I. Introduction to Kubernetes Services 
+
+•	Purpose: Pods are ephemeral and receive unique, changing IP addresses. Services provide a stable network endpoint to expose applications running in pods.
+•	Internal Operation: Kubernetes uses kube-proxy to manage networking and forward requests to pods.
+•	Service Identification: Services use selectors to identify pods based on labels (key-value pairs) defined in the pod manifest.
+
+II. Types of Kubernetes Services 
+
+•	ClusterIP: The default service type; exposes the application only within the cluster.
+•	NodePort: Exposes the service on a specific port on every worker node's IP, allowing external access to the cluster.
+•	LoadBalancer: Used for exposing services to the outside world, typically integrated with cloud provider load balancers.
+•	ExternalName: Maps a service to an external DNS name.
+
+III. Lab: ClusterIP and Pod-to-Pod Communication 
+
+•	Goal: Enable communication between an nginx pod and an httpd pod using services.
+•	Key Commands:
+•	`kubectl get pods`: List running pods.
+•	`kubectl get service`: List available services.
+•	`kubectl get endpoints`: View the IP addresses associated with a service.
+•	`kubectl exec -it  -- /bin/sh`: Access the shell of a running pod.
+•	`apt install curl`: Install utility to test connectivity from within the pod.
+•	`curl http://`: Test communication between services.
+
+IV. Lab: NodePort Service 
+
+•	Concept: Maps a port in the range 30000-32767 on all worker nodes to the service.
+•	Workflow:
+    1.  Define `type: NodePort` in the service manifest.
+    2.  If no `nodePort` is specified, Kubernetes assigns a random port in the allowed range.
+    3.  Update the Security Group of the worker nodes to allow inbound traffic on the selected `nodePort`.
+    4.  Access the application using the Worker Node Public IP:NodePort.
+
+V. Syntax-Annotated Code Blocks 
+
+yaml
+
+Example NodePort Service Manifest
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: zomato-service
+spec:
+  type: NodePort
+  selector:
+     app: zomato-app    # Must match pod label
+  ports:
+    - port: 80         # Internal service port
+       targetPort: 80   # Container port
+       nodePort: 31000  # External port (30000-32767)
+
+
+This session provides a practical guide to Kubernetes Services and Namespaces, followed by an introduction to Kubernetes Controllers.
+
+1. Kubernetes Services: LoadBalancer 
+
+Building on previous sessions (ClusterIP and NodePort), the presenter explains the LoadBalancer service type. This automates the creation of cloud-native load balancers (AWS, Azure, or GCP) to expose applications to the internet.
+
+Manifest configuration for LoadBalancer:
+yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: zomato-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: zomato
+  ports:
+     - protocol: TCP
+        port: 80
+        targetPort: 3000
+
+2. Kubernetes Namespaces 
+
+Namespaces provide logical isolation for resources, essential for separating environments (e.g., Dev, Test, Prod) or different project workloads within a single cluster.
+
+•	Key Namespace Commands:
+•	`kubectl create ns `: Create a new namespace.
+•	`kubectl get pods -n `: List resources in a specific namespace.
+•	`kubectl delete ns `: Deletes the namespace and all contained resources.
+•	`kubectl config set-context --current --namespace=`: Switch the default namespace.
+
+3. Kubernetes Controllers: Replication Controller (RC) 
+
+Controllers manage pod lifecycles and ensure the desired state matches the observed state through a process called reconciliation.
+
+Replication Controller (RC) Example:
+RCs ensure a specific number of pod replicas are running. If a pod is deleted, the RC automatically recreates it.
+
+yaml
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: zomato-rc
+spec:
+  replicas: 3
+  selector:
+    app: zomato
+template:
+metadata:
+  labels:
+    app: zomato
+spec:
+  containers:
+  -	name: zomato-container
+    image: my-zomato-image
+
+Common Controller Commands:
+
+•	`kubectl get rc`: View replication controllers.
+•	`kubectl scale rc  --replicas=`: Dynamically scale the number of pods
