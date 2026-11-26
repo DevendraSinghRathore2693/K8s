@@ -1,24 +1,31 @@
 apiVersion: v1
-kind: pod
+kind: Pod
 metadata:
   name: myapp
   labels:
   app: myapp
 spec:
-containers:
-- name: myappcontainer
-  image: myappimage:v1
-  ports:
-  - containerPort: 80
+  containers:
+    - name: myappcontainer
+      image: myappimage:v1
+      volumemounts:
+        - name: myappvol
+          mountPath: /data
+      ports:
+        - containerPort: 80
+  volumes:
+    - name: myappvol
+      emptyDir: {}
 
 ---
 apiVersion: v1
-kind: services
+kind: Service
 metadata: 
   name: myappservice
 spec:
   selector:
     app: myapp
   ports:
-  - protocol: TCP
-    port: 80
+volumes:
+  - name: myappvol
+    emptyDir: {}
